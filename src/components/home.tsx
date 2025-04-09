@@ -176,14 +176,6 @@ const Home = () => {
               Philips Invoice & PO Verification System
             </h1>
           </div>
-          <div>
-            <Button
-              variant="outline"
-              className="text-white border-white hover:bg-blue-700"
-            >
-              <History className="mr-2 h-4 w-4" /> View Audit Log
-            </Button>
-          </div>
         </div>
       </header>
 

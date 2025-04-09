@@ -22,22 +22,41 @@ import {
 import DocumentUpload from "./DocumentUpload";
 import VerificationDashboard from "./VerificationDashboard";
 import AuditTrail from "./AuditTrail";
+import { verifyDocuments } from "@/services/verificationService";
+import { DocumentData, VerificationResult } from "@/types/verification";
 
 const Home = () => {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [isVerifying, setIsVerifying] = useState(false);
   const [verificationComplete, setVerificationComplete] = useState(false);
-  const [uploadedDocuments, setUploadedDocuments] = useState<{
-    invoice: File | null;
-    po: File | null;
-  }>({
+  const [uploadedDocuments, setUploadedDocuments] = useState<DocumentData>({
     invoice: null,
     po: null,
   });
 
-  // Mock verification results for the demo
-  const [verificationResults, setVerificationResults] = useState({
-    status: "partial", // 'success', 'error', 'partial'
+  // Verification results state
+  const [verificationResults, setVerificationResults] = useState<{
+    status: "success" | "error" | "partial";
+    gst: {
+      status: string;
+      invoiceValue: string;
+      poValue: string;
+      govtValue: string;
+    };
+    hsn: {
+      status: string;
+      invoiceValue: string;
+      poValue: string;
+      govtValue: string;
+    };
+    msme: {
+      status: string;
+      invoiceValue: string;
+      poValue: string;
+      govtValue: string;
+    };
+  }>({
+    status: "partial",
     gst: {
       status: "success",
       invoiceValue: "27AABCP9441L1ZP",
@@ -65,14 +84,64 @@ const Home = () => {
     }));
   };
 
-  const handleVerification = () => {
+  const handleVerification = async () => {
+    if (!uploadedDocuments.invoice || !uploadedDocuments.po) {
+      return;
+    }
+
     setIsVerifying(true);
-    // Simulate verification process
-    setTimeout(() => {
-      setIsVerifying(false);
+
+    try {
+      // Call the verification service
+      const result = await verifyDocuments(
+        uploadedDocuments.invoice,
+        uploadedDocuments.po,
+      );
+
+      if (result.success && result.comparisonResults) {
+        // Determine overall status
+        const statuses = Object.values(result.comparisonResults).map(
+          (item) => item.status,
+        );
+        let overallStatus: "success" | "error" | "partial" = "success";
+
+        if (statuses.includes("mismatch")) {
+          overallStatus = "error";
+        } else if (statuses.includes("partial")) {
+          overallStatus = "partial";
+        }
+
+        // Update verification results
+        setVerificationResults({
+          status: overallStatus,
+          gst: {
+            status: result.comparisonResults.gst?.status || "pending",
+            invoiceValue: result.comparisonResults.gst?.invoiceValue || "",
+            poValue: result.comparisonResults.gst?.poValue || "",
+            govtValue: result.comparisonResults.gst?.govtValue || "",
+          },
+          hsn: {
+            status: result.comparisonResults.hsn?.status || "pending",
+            invoiceValue: result.comparisonResults.hsn?.invoiceValue || "",
+            poValue: result.comparisonResults.hsn?.poValue || "",
+            govtValue: result.comparisonResults.hsn?.govtValue || "",
+          },
+          msme: {
+            status: result.comparisonResults.msme?.status || "pending",
+            invoiceValue: result.comparisonResults.msme?.invoiceValue || "",
+            poValue: result.comparisonResults.msme?.poValue || "",
+            govtValue: result.comparisonResults.msme?.govtValue || "",
+          },
+        });
+      }
+
       setVerificationComplete(true);
       setActiveTab("verification");
-    }, 2000);
+    } catch (error) {
+      console.error("Verification failed:", error);
+    } finally {
+      setIsVerifying(false);
+    }
   };
 
   const resetVerification = () => {
@@ -165,10 +234,9 @@ const Home = () => {
                         Invoice Document
                       </h3>
                       <DocumentUpload
-                        onUpload={(file) =>
+                        onUploadComplete={(file) =>
                           handleDocumentUpload("invoice", file)
                         }
-                        uploadedFile={uploadedDocuments.invoice}
                         documentType="invoice"
                       />
                     </div>
@@ -177,8 +245,9 @@ const Home = () => {
                         Purchase Order Document
                       </h3>
                       <DocumentUpload
-                        onUpload={(file) => handleDocumentUpload("po", file)}
-                        uploadedFile={uploadedDocuments.po}
+                        onUploadComplete={(file) =>
+                          handleDocumentUpload("po", file)
+                        }
                         documentType="po"
                       />
                     </div>

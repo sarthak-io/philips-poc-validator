@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Check,
   X,
@@ -31,6 +31,7 @@ import {
   DialogTrigger,
 } from "./ui/dialog";
 import DetailedComparison from "./DetailedComparison";
+import { DocumentData } from "@/types/verification";
 
 interface VerificationItem {
   field: string;
@@ -52,8 +53,28 @@ interface VerificationData {
 }
 
 interface VerificationDashboardProps {
-  poDocument?: File;
-  invoiceDocument?: File;
+  results?: {
+    status: "success" | "error" | "partial";
+    gst: {
+      status: string;
+      invoiceValue: string;
+      poValue: string;
+      govtValue: string;
+    };
+    hsn: {
+      status: string;
+      invoiceValue: string;
+      poValue: string;
+      govtValue: string;
+    };
+    msme: {
+      status: string;
+      invoiceValue: string;
+      poValue: string;
+      govtValue: string;
+    };
+  };
+  documents?: DocumentData;
   onRequestCorrection?: () => void;
   onAccept?: () => void;
   onReject?: () => void;
@@ -61,8 +82,8 @@ interface VerificationDashboardProps {
 }
 
 const VerificationDashboard: React.FC<VerificationDashboardProps> = ({
-  poDocument = null,
-  invoiceDocument = null,
+  results,
+  documents,
   onRequestCorrection = () => {},
   onAccept = () => {},
   onReject = () => {},
@@ -73,27 +94,27 @@ const VerificationDashboard: React.FC<VerificationDashboardProps> = ({
   const [showDetailedView, setShowDetailedView] = useState(false);
   const [activeTab, setActiveTab] = useState("summary");
 
-  // Mock verification data - in a real app, this would come from API calls
+  // Use data from props or initialize with defaults
   const [verificationData, setVerificationData] = useState<VerificationData>({
     gst: {
       field: "GST Number",
-      poValue: "27AABCP9441L1ZT",
-      invoiceValue: "27AABCP9441L1ZT",
-      status: "match",
+      poValue: results?.gst?.poValue || "Pending",
+      invoiceValue: results?.gst?.invoiceValue || "Pending",
+      status: results?.gst?.status || "pending",
       source: "Government GST Portal",
     },
     hsn: {
       field: "HSN Code",
-      poValue: "85371000",
-      invoiceValue: "85371000",
-      status: "match",
+      poValue: results?.hsn?.poValue || "Pending",
+      invoiceValue: results?.hsn?.invoiceValue || "Pending",
+      status: results?.hsn?.status || "pending",
       source: "HSN Database",
     },
     msme: {
       field: "MSME Registration",
-      poValue: "UDYAM-MH-33-0012345",
-      invoiceValue: "UDYAM-MH-33-0012346",
-      status: "mismatch",
+      poValue: results?.msme?.poValue || "Pending",
+      invoiceValue: results?.msme?.invoiceValue || "Pending",
+      status: results?.msme?.status || "pending",
       source: "MSME Portal",
     },
     companyName: {
@@ -104,32 +125,77 @@ const VerificationDashboard: React.FC<VerificationDashboardProps> = ({
     },
     totalAmount: {
       field: "Total Amount",
-      poValue: "₹ 245,600.00",
-      invoiceValue: "₹ 245,600.00",
-      status: "match",
+      poValue: "Pending",
+      invoiceValue: "Pending",
+      status: "pending",
     },
     invoiceNumber: {
       field: "Invoice Number",
       poValue: "N/A",
-      invoiceValue: "INV-2023-4567",
+      invoiceValue: "Pending",
       status: "pending",
     },
     poNumber: {
       field: "PO Number",
-      poValue: "PO-2023-1234",
-      invoiceValue: "PO-2023-1234",
-      status: "match",
+      poValue: "Pending",
+      invoiceValue: "Pending",
+      status: "pending",
     },
     date: {
       field: "Date",
-      poValue: "15-May-2023",
-      invoiceValue: "18-May-2023",
-      status: "partial",
+      poValue: "Pending",
+      invoiceValue: "Pending",
+      status: "pending",
     },
   });
 
+  // Update verification data when props change
+  useEffect(() => {
+    if (results) {
+      console.log("VerificationDashboard received new results:", results);
+
+      // Create a new verification data object with updated values
+      const newData = {
+        ...verificationData,
+        gst: {
+          ...verificationData.gst,
+          poValue: results.gst?.poValue || verificationData.gst.poValue,
+          invoiceValue:
+            results.gst?.invoiceValue || verificationData.gst.invoiceValue,
+          status: results.gst?.status || verificationData.gst.status,
+        },
+        hsn: {
+          ...verificationData.hsn,
+          poValue: results.hsn?.poValue || verificationData.hsn.poValue,
+          invoiceValue:
+            results.hsn?.invoiceValue || verificationData.hsn.invoiceValue,
+          status: results.hsn?.status || verificationData.hsn.status,
+        },
+        msme: {
+          ...verificationData.msme,
+          poValue: results.msme?.poValue || verificationData.msme.poValue,
+          invoiceValue:
+            results.msme?.invoiceValue || verificationData.msme.invoiceValue,
+          status: results.msme?.status || verificationData.msme.status,
+        },
+      };
+
+      // Force a complete state update to ensure the UI refreshes
+      setVerificationData(newData);
+      console.log("VerificationDashboard updated state:", newData);
+    }
+  }, [results]);
+
   // Calculate overall verification status
   const getOverallStatus = () => {
+    // If results are provided, use the status from there
+    if (results && results.status) {
+      if (results.status === "error") return "mismatch";
+      if (results.status === "partial") return "partial";
+      if (results.status === "success") return "match";
+    }
+
+    // Otherwise calculate from verification data
     const statuses = Object.values(verificationData).map((item) => item.status);
     if (statuses.includes("mismatch")) return "mismatch";
     if (statuses.includes("partial")) return "partial";
@@ -259,7 +325,7 @@ const VerificationDashboard: React.FC<VerificationDashboardProps> = ({
             <div className="ml-3">
               <p className="text-sm font-medium text-blue-900">PO Document</p>
               <p className="text-xs text-blue-700">
-                {poDocument ? poDocument.name : "PO-2023-1234.pdf"}
+                {documents?.po ? documents.po.name : "No PO document uploaded"}
               </p>
             </div>
           </div>
@@ -273,7 +339,9 @@ const VerificationDashboard: React.FC<VerificationDashboardProps> = ({
                 Invoice Document
               </p>
               <p className="text-xs text-blue-700">
-                {invoiceDocument ? invoiceDocument.name : "INV-2023-4567.pdf"}
+                {documents?.invoice
+                  ? documents.invoice.name
+                  : "No invoice document uploaded"}
               </p>
             </div>
           </div>
@@ -585,20 +653,8 @@ const VerificationDashboard: React.FC<VerificationDashboardProps> = ({
           </DialogHeader>
           <div className="py-4">
             <DetailedComparison
-              poData={Object.values(verificationData).reduce(
-                (acc, item) => {
-                  acc[item.field] = item.poValue;
-                  return acc;
-                },
-                {} as Record<string, string>,
-              )}
-              invoiceData={Object.values(verificationData).reduce(
-                (acc, item) => {
-                  acc[item.field] = item.invoiceValue;
-                  return acc;
-                },
-                {} as Record<string, string>,
-              )}
+              poNumber={verificationData.poNumber.poValue}
+              invoiceNumber={verificationData.invoiceNumber.invoiceValue}
             />
           </div>
           <DialogFooter>

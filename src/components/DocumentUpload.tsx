@@ -18,15 +18,16 @@ interface DocumentUploadProps {
   onUploadComplete?: (file: File, documentType: "invoice" | "po") => void;
   maxFileSize?: number; // in MB
   allowedFileTypes?: string[];
+  documentType?: "invoice" | "po";
 }
 
 const DocumentUpload = ({
   onUploadComplete = () => {},
   maxFileSize = 10, // Default 10MB
   allowedFileTypes = [".pdf"],
+  documentType = "invoice",
 }: DocumentUploadProps) => {
   const [file, setFile] = useState<File | null>(null);
-  const [documentType, setDocumentType] = useState<"invoice" | "po">("invoice");
   const [isDragging, setIsDragging] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadStatus, setUploadStatus] = useState<
@@ -109,18 +110,25 @@ const DocumentUpload = ({
     setUploadStatus("uploading");
     setUploadProgress(0);
 
-    // Simulate upload progress
-    const interval = setInterval(() => {
-      setUploadProgress((prev) => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          setUploadStatus("success");
-          onUploadComplete(file, documentType);
-          return 100;
-        }
-        return prev + 10;
-      });
-    }, 200);
+    // Process the file - in a real app, this would send to a server
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      // Simulate processing the file content
+      const interval = setInterval(() => {
+        setUploadProgress((prev) => {
+          if (prev >= 100) {
+            clearInterval(interval);
+            setUploadStatus("success");
+            onUploadComplete(file, documentType);
+            return 100;
+          }
+          return prev + 10;
+        });
+      }, 200);
+    };
+
+    // Start reading the file as text (for demo purposes)
+    reader.readAsText(file);
   };
 
   const resetUpload = () => {
@@ -135,27 +143,6 @@ const DocumentUpload = ({
       <Card className="border-2 border-dashed rounded-xl">
         <CardContent className="p-6">
           <div className="space-y-6">
-            {/* Document Type Selection */}
-            <div className="mb-6">
-              <h3 className="text-lg font-medium mb-3">Select Document Type</h3>
-              <RadioGroup
-                value={documentType}
-                onValueChange={(value) =>
-                  setDocumentType(value as "invoice" | "po")
-                }
-                className="flex space-x-6"
-              >
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="invoice" id="invoice" />
-                  <Label htmlFor="invoice">Invoice</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="po" id="po" />
-                  <Label htmlFor="po">Purchase Order</Label>
-                </div>
-              </RadioGroup>
-            </div>
-
             {/* Upload Area */}
             <div
               className={`relative flex flex-col items-center justify-center h-64 border-2 rounded-lg transition-colors ${isDragging ? "border-primary bg-primary/5" : "border-muted-foreground/20"} ${uploadStatus === "error" ? "border-destructive bg-destructive/5" : ""}`}

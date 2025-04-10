@@ -55,27 +55,7 @@ const Home = () => {
       poValue: string;
       govtValue: string;
     };
-  }>({
-    status: "partial",
-    gst: {
-      status: "success",
-      invoiceValue: "27AABCP9441L1ZP",
-      poValue: "27AABCP9441L1ZP",
-      govtValue: "27AABCP9441L1ZP",
-    },
-    hsn: {
-      status: "error",
-      invoiceValue: "85044090",
-      poValue: "85044010",
-      govtValue: "85044090",
-    },
-    msme: {
-      status: "warning",
-      invoiceValue: "UDYAM-MH-33-0012345",
-      poValue: "UDYAM-MH-33-0012345",
-      govtValue: "Verification pending",
-    },
-  });
+  }>({} as any);
 
   const handleDocumentUpload = (type: "invoice" | "po", file: File) => {
     setUploadedDocuments((prev) => ({
@@ -90,6 +70,35 @@ const Home = () => {
     }
 
     setIsVerifying(true);
+    setVerificationComplete(false);
+
+    // Reset previous verification results
+    setVerificationResults({
+      status: "partial",
+      gst: {
+        status: "pending",
+        invoiceValue: "",
+        poValue: "",
+        govtValue: "",
+      },
+      hsn: {
+        status: "pending",
+        invoiceValue: "",
+        poValue: "",
+        govtValue: "",
+      },
+      msme: {
+        status: "pending",
+        invoiceValue: "",
+        poValue: "",
+        govtValue: "",
+      },
+    });
+
+    console.log("Starting verification with documents:", {
+      invoice: uploadedDocuments.invoice?.name,
+      po: uploadedDocuments.po?.name,
+    });
 
     try {
       // Call the verification service
@@ -111,7 +120,7 @@ const Home = () => {
           overallStatus = "partial";
         }
 
-        // Update verification results
+        // Update verification results with actual data from the service
         setVerificationResults({
           status: overallStatus,
           gst: {
@@ -133,6 +142,8 @@ const Home = () => {
             govtValue: result.comparisonResults.msme?.govtValue || "",
           },
         });
+
+        console.log("Verification results updated:", result.comparisonResults);
       }
 
       setVerificationComplete(true);
@@ -156,24 +167,15 @@ const Home = () => {
       <header className="bg-[#0E5AA7] text-white p-4 shadow-md">
         <div className="container mx-auto flex justify-between items-center">
           <div className="flex items-center space-x-2">
-            <svg
+            <img
+              src="/philips-logo.svg"
+              alt="Philips Logo"
               width="40"
               height="40"
-              viewBox="0 0 40 40"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                d="M20 0C8.954 0 0 8.954 0 20C0 31.046 8.954 40 20 40C31.046 40 40 31.046 40 20C40 8.954 31.046 0 20 0ZM20 36.923C10.651 36.923 3.077 29.349 3.077 20C3.077 10.651 10.651 3.077 20 3.077C29.349 3.077 36.923 10.651 36.923 20C36.923 29.349 29.349 36.923 20 36.923Z"
-                fill="white"
-              />
-              <path
-                d="M30 20C30 25.523 25.523 30 20 30C14.477 30 10 25.523 10 20C10 14.477 14.477 10 20 10C25.523 10 30 14.477 30 20Z"
-                fill="white"
-              />
-            </svg>
+              className="bg-white rounded-full p-1"
+            />
             <h1 className="text-xl font-bold">
-              AlphaByte Invoice & PO Verification System
+              Philips Invoice & PO Verification System
             </h1>
           </div>
           <div>
@@ -355,8 +357,8 @@ const Home = () => {
           <div className="flex flex-col md:flex-row justify-between items-center">
             <div className="mb-4 md:mb-0">
               <p className="text-sm text-gray-600">
-                © {new Date().getFullYear()} AlphaByte Invoice & PO
-                Verification System
+                © {new Date().getFullYear()} Philips Invoice & PO Verification
+                System
               </p>
             </div>
             <div className="flex space-x-4">

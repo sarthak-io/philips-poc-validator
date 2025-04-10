@@ -1,38 +1,164 @@
 import { GSTVerificationResponse } from "@/types/verification";
 
-// Mock OCR function to simulate extracting data from documents
+// Extract data from documents using OCR simulation
 export const extractDataFromDocument = async (
   file: File,
   documentType: "invoice" | "po",
 ) => {
   return new Promise<Record<string, string>>((resolve) => {
     // In a real implementation, this would send the file to an OCR service
-    // For now, we'll simulate the extraction with mock data
-    setTimeout(() => {
+    // For now, we'll simulate the extraction based on the file name and content
+    const reader = new FileReader();
+
+    reader.onload = (event) => {
+      // Generate truly unique data based on the file name, size, and last modified time
+      const fileName = file.name.toLowerCase();
+      const fileSize = file.size;
+      const lastModified = file.lastModified;
+      const uniqueId = fileName + fileSize.toString() + lastModified.toString();
+      const randomSeed = Array.from(uniqueId).reduce(
+        (acc, char) => acc + char.charCodeAt(0),
+        0,
+      );
+
+      console.log(
+        `Generating data for ${documentType} file: ${fileName} with seed: ${randomSeed}`,
+      );
+
+      // Generate a GST number with some variations
+      const gstBase = "27AABCP";
+      const gstMiddle = Math.floor(1000 + (randomSeed % 9000)).toString();
+      const gstEnd = "N1ZO";
+      const gstNumber = gstBase + gstMiddle + gstEnd;
+
+      // Generate HSN code with variations
+      const hsnBase = "8513";
+      const hsnEnd = (10 + (randomSeed % 90)).toString();
+      const hsnCode = hsnBase + hsnEnd;
+
+      // Generate MSME number with more realistic format
+      const msmeNumber = `UDYAM-HR-${20 + (randomSeed % 10)}-${(10000 + (randomSeed % 90000)).toString()}`;
+
+      // Generate invoice/PO numbers with more realistic format
+      const currentYear = new Date().getFullYear();
+      const invoiceNumber = `INV-${currentYear}-${1000 + (randomSeed % 9000)}`;
+      const poNumber = `PO-${currentYear}-${100 + (randomSeed % 900)}`;
+
+      // Generate amount with variations that create meaningful differences
+      const baseAmount = 80000 + ((randomSeed * 100) % 50000);
+      const formattedAmount = `₹ ${baseAmount.toLocaleString("en-IN")}.00`;
+
+      // Generate dates with meaningful differences
+      const today = new Date();
+      const invoiceDate = new Date(today);
+      invoiceDate.setDate(today.getDate() - (randomSeed % 15));
+      const poDate = new Date(invoiceDate);
+      poDate.setDate(invoiceDate.getDate() - (5 + (randomSeed % 10)));
+
+      const formatDate = (date: Date) => {
+        const day = date.getDate().toString().padStart(2, "0");
+        const month = date.toLocaleString("en-US", { month: "short" });
+        const year = date.getFullYear();
+        return `${day}-${month}-${year}`;
+      };
+
+      // Create intentional mismatches based on file properties
+      // This ensures different files will have different comparison results
+      const shouldCreateMismatch = randomSeed % 3 === 0; // 1/3 chance of mismatch
+      const shouldCreatePartialMatch = randomSeed % 5 === 0; // 1/5 chance of partial match
+
+      // Generate contact person names for more realistic data
+      const contactPersons = [
+        "Rahul Sharma",
+        "Amit Patel",
+        "Priya Singh",
+        "Vikram Mehta",
+        "Neha Gupta",
+        "Sanjay Kumar",
+        "Ananya Desai",
+        "Rajesh Khanna",
+      ];
+      const invoiceContactIndex = randomSeed % contactPersons.length;
+      const poContactIndex = shouldCreateMismatch
+        ? (invoiceContactIndex + 1) % contactPersons.length
+        : invoiceContactIndex;
+
       if (documentType === "invoice") {
-        resolve({
-          gst: "27AABCP9441L1ZP",
-          hsn: "85044090",
-          msme: "UDYAM-MH-33-0012345",
+        const data = {
+          gst: gstNumber,
+          hsn: hsnCode,
+          msme: msmeNumber,
           companyName: "Philips India Limited",
-          totalAmount: "₹ 245,600.00",
-          invoiceNumber: "INV-2023-4567",
-          poNumber: "PO-2023-1234",
-          date: "18-May-2023",
-        });
+          totalAmount: formattedAmount,
+          invoiceNumber: invoiceNumber,
+          poNumber: poNumber,
+          date: formatDate(invoiceDate),
+          contactPerson: contactPersons[invoiceContactIndex],
+        };
+        console.log(`Invoice data generated for ${fileName}:`, data);
+        resolve(data);
       } else {
-        resolve({
-          gst: "27AABCP9441L1ZP",
-          hsn: "85044010", // Intentional mismatch for demo
-          msme: "UDYAM-MH-33-0012345",
+        // For PO, we'll create some intentional mismatches for demo purposes
+        // The mismatches will be different for different files
+        const poHsnCode = shouldCreateMismatch
+          ? hsnBase + (parseInt(hsnEnd) + 10).toString()
+          : hsnCode;
+
+        const poMsmeNumber = shouldCreatePartialMatch
+          ? msmeNumber.substring(0, msmeNumber.length - 1) +
+            (
+              (parseInt(msmeNumber.charAt(msmeNumber.length - 1)) + 1) %
+              10
+            ).toString()
+          : msmeNumber;
+
+        // Create a different amount for PO if mismatch is needed
+        const poAmount = shouldCreateMismatch
+          ? `₹ ${(baseAmount - 5000).toLocaleString("en-IN")}.00`
+          : formattedAmount;
+
+        const data = {
+          gst: gstNumber, // Same GST
+          hsn: poHsnCode, // Potentially different HSN for demo
+          msme: poMsmeNumber, // Potentially different MSME for demo
           companyName: "Philips India Limited",
-          totalAmount: "₹ 245,600.00",
+          totalAmount: poAmount,
           invoiceNumber: "",
-          poNumber: "PO-2023-1234",
-          date: "15-May-2023",
-        });
+          poNumber: poNumber,
+          date: formatDate(poDate),
+          contactPerson: contactPersons[poContactIndex],
+        };
+        console.log(`PO data generated for ${fileName}:`, data);
+        resolve(data);
       }
-    }, 1000);
+    };
+
+    reader.onerror = () => {
+      // Fallback if file reading fails
+      const fallbackData = {
+        gst: "27AABCP9782N1ZO",
+        hsn: documentType === "invoice" ? "85131090" : "85131010",
+        msme: `UDYAM-HR-28-${10000 + Math.floor(Math.random() * 90000)}`,
+        companyName: "Philips India Limited",
+        totalAmount: `₹ ${(120000 + Math.floor(Math.random() * 50000)).toLocaleString("en-IN")}.00`,
+        invoiceNumber:
+          documentType === "invoice"
+            ? `INV-${new Date().getFullYear()}-${1000 + Math.floor(Math.random() * 9000)}`
+            : "",
+        poNumber: `PO-${new Date().getFullYear()}-${100 + Math.floor(Math.random() * 900)}`,
+        date: documentType === "invoice" ? "15-Jun-2023" : "10-Jun-2023",
+        contactPerson:
+          documentType === "invoice" ? "Rahul Sharma" : "Amit Patel",
+      };
+      console.log(
+        `Error reading file ${file.name}, using fallback data:`,
+        fallbackData,
+      );
+      resolve(fallbackData);
+    };
+
+    // Start reading the file
+    reader.readAsText(file);
   });
 };
 
@@ -97,12 +223,75 @@ export const compareDocuments = (
   // Compare each field
   for (const key in invoiceData) {
     if (key in poData) {
-      const status = invoiceData[key] === poData[key] ? "match" : "mismatch";
+      let status: string;
+
+      if (invoiceData[key] === poData[key]) {
+        status = "match";
+      } else {
+        // More sophisticated comparison logic based on field type
+        if (
+          key === "msme" &&
+          invoiceData[key].substring(0, invoiceData[key].length - 5) ===
+            poData[key].substring(0, poData[key].length - 5)
+        ) {
+          // If most of the MSME number matches except the last few digits
+          status = "partial";
+        } else if (
+          key === "hsn" &&
+          invoiceData[key].substring(0, 4) === poData[key].substring(0, 4)
+        ) {
+          // If the HSN code category matches but not the full code
+          status = "partial";
+        } else if (key === "totalAmount") {
+          // Extract numeric values for amount comparison
+          const invoiceAmount = parseFloat(
+            invoiceData[key].replace(/[^0-9.]/g, ""),
+          );
+          const poAmount = parseFloat(poData[key].replace(/[^0-9.]/g, ""));
+
+          if (invoiceAmount === poAmount) {
+            status = "match";
+          } else if (Math.abs(invoiceAmount - poAmount) / poAmount < 0.05) {
+            // If the difference is less than 5%
+            status = "partial";
+          } else {
+            status = "mismatch";
+          }
+        } else if (key === "date") {
+          // For dates, check if they're within a reasonable range
+          try {
+            const invoiceDateParts = invoiceData[key].split("-");
+            const poDateParts = poData[key].split("-");
+
+            // If the month and year match, consider it a partial match
+            if (
+              invoiceDateParts[1] === poDateParts[1] &&
+              invoiceDateParts[2] === poDateParts[2]
+            ) {
+              status = "partial";
+            } else {
+              status = "mismatch";
+            }
+          } catch (e) {
+            status = "mismatch";
+          }
+        } else if (key === "contactPerson") {
+          // Always mark different contact persons as a mismatch
+          status = "mismatch";
+        } else {
+          status = "mismatch";
+        }
+      }
+
       comparisonResults[key] = {
         status,
         invoiceValue: invoiceData[key],
         poValue: poData[key],
       };
+
+      console.log(
+        `Comparing ${key}: ${invoiceData[key]} vs ${poData[key]} => ${status}`,
+      );
     }
   }
 
@@ -112,15 +301,25 @@ export const compareDocuments = (
 // Main verification function that orchestrates the process
 export const verifyDocuments = async (invoiceFile: File, poFile: File) => {
   try {
+    console.log(
+      "Starting verification process for files:",
+      invoiceFile.name,
+      poFile.name,
+    );
+
     // 1. Extract data from both documents using OCR
     const invoiceData = await extractDataFromDocument(invoiceFile, "invoice");
     const poData = await extractDataFromDocument(poFile, "po");
+
+    console.log("Extracted data:", { invoiceData, poData });
 
     // 2. Verify GST number with government API
     const gstVerificationResult = await verifyGST(invoiceData.gst);
 
     // 3. Compare documents
     const comparisonResults = compareDocuments(invoiceData, poData);
+
+    console.log("Initial comparison results:", comparisonResults);
 
     // 4. Add government verification data
     if (gstVerificationResult.success && comparisonResults.gst) {
@@ -130,6 +329,22 @@ export const verifyDocuments = async (invoiceFile: File, poFile: File) => {
           ? "match"
           : "mismatch";
     }
+
+    // Ensure we have the right status values for UI display
+    for (const key in comparisonResults) {
+      if (comparisonResults[key]) {
+        // Convert status values to match what the UI expects
+        if (comparisonResults[key].status === "match") {
+          comparisonResults[key].status = "match";
+        } else if (comparisonResults[key].status === "mismatch") {
+          comparisonResults[key].status = "mismatch";
+        } else {
+          comparisonResults[key].status = "partial";
+        }
+      }
+    }
+
+    console.log("Final comparison results:", comparisonResults);
 
     // 5. Return comprehensive results
     return {

@@ -310,11 +310,17 @@ export const verifyDocuments = async (invoiceFile: File, poFile: File) => {
     // 1. Extract data from both documents using OCR
     const invoiceData = await extractDataFromDocument(invoiceFile, "invoice");
     const poData = await extractDataFromDocument(poFile, "po");
+    const filesDataResponse = await getDataFromDocuments(invoiceFile, poFile);
+    const filesData = await filesDataResponse.json();
 
-    console.log("Extracted data:", { invoiceData, poData });
+    console.log("Extracted data:", filesData);
+    console.log("invoiceData", invoiceData);
+    console.log("poData", poData);
+    
+    const gst = filesData.extracted_invoice['GSTIN'];
 
     // 2. Verify GST number with government API
-    const gstVerificationResult = await verifyGST(invoiceData.gst);
+    const gstVerificationResult = await verifyGST(gst);
 
     // 3. Compare documents
     const comparisonResults = compareDocuments(invoiceData, poData);
@@ -362,3 +368,16 @@ export const verifyDocuments = async (invoiceFile: File, poFile: File) => {
     };
   }
 };
+
+export const getDataFromDocuments = async (invoiceData, poData) => {
+  const formData = new FormData();
+  formData.append("invoice_file", invoiceData);
+  formData.append("po_file", poData);
+
+  const res = await fetch('http://localhost:8000/extract',{
+    method: "POST",
+    body: formData,
+  })
+
+  return res;
+}
